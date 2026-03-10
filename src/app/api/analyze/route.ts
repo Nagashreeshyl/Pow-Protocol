@@ -41,13 +41,15 @@ export async function POST(req: NextRequest) {
                 repoInfo.fullName,
                 repoInfo.languages,
                 files.map((f) => ({ path: f.path, content: f.content })),
-                projectType
+                projectType,
+                commitInfo
             );
         } catch (err) {
             console.error("AI analysis error:", err);
             // Use fallback scores
             codeAnalysis = {
                 overall_score: 65,
+                authenticity: { score: 60, details: "Analysis unavailable" },
                 scalability: { score: 60, details: "Analysis unavailable" },
                 security: { score: 60, details: "Analysis unavailable" },
                 code_quality: { score: 65, details: "Analysis unavailable" },
@@ -69,13 +71,13 @@ export async function POST(req: NextRequest) {
         // Calculate performance
         const performanceScore = calculatePerformanceScore(repoInfo, repoInfo.languages);
 
-        // Build final scores
+        // Build final scores. Prefer Groq AI score for authenticity, but keep legacy calculation as details backup.
         const scores = {
             performance: performanceScore,
             scalability: codeAnalysis.scalability.score,
             security: codeAnalysis.security.score,
             code_quality: codeAnalysis.code_quality.score,
-            authenticity: authenticity.score,
+            authenticity: codeAnalysis.authenticity.score,
             overall: 0,
         };
         scores.overall = calculateOverallScore(scores);
@@ -89,7 +91,11 @@ export async function POST(req: NextRequest) {
             files_analyzed: files.length,
             lines_of_code: totalLinesEstimate,
             ai_analysis: codeAnalysis.summary,
-            authenticity_details: authenticity.details,
+            authenticity_details: {
+                score: codeAnalysis.authenticity.score,
+                details: codeAnalysis.authenticity.details,
+                ...authenticity.details
+            },
             code_insights: {
                 strengths: codeAnalysis.strengths,
                 weaknesses: codeAnalysis.weaknesses,

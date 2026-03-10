@@ -21,10 +21,12 @@ export interface Verification {
         lines_of_code: number;
         ai_analysis: string;
         authenticity_details: {
-            commit_regularity: number;
-            ai_detection: number;
-            style_consistency: number;
-            originality: number;
+            score: number;
+            details: string;
+            commit_regularity?: number;
+            ai_detection?: number;
+            style_consistency?: number;
+            originality?: number;
         };
         code_insights: {
             strengths: string[];

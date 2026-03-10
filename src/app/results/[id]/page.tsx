@@ -267,7 +267,7 @@ export default function ResultsPage() {
                         {/* Authenticity Matrix */}
                         <div className="p-12 rounded-[48px] shadow-nm-inset bg-nm-bg">
                             <h3 className="text-xl font-bold tracking-widest uppercase mb-12 text-center text-nm-fg">Authenticity_Matrix</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
                                 {[
                                     { label: "History_Pattern", value: metrics?.authenticity_details?.commit_regularity },
                                     { label: "Human_Delta", value: metrics?.authenticity_details?.ai_detection },
@@ -277,18 +277,31 @@ export default function ResultsPage() {
                                     <div key={metric.label}>
                                         <div className="flex justify-between items-end mb-4">
                                             <span className="text-[10px] font-bold tracking-[0.2em] text-nm-muted uppercase">{metric.label}</span>
-                                            <span className="text-2xl font-black tracking-tighter text-nm-fg">{metric.value}%</span>
+                                            <span className="text-2xl font-black tracking-tighter text-nm-fg">{metric.value ? `${metric.value}%` : '---'}</span>
                                         </div>
                                         <div className="h-3 w-full bg-nm-bg rounded-full shadow-nm-inset overflow-hidden p-0.5">
                                             <motion.div
                                                 initial={{ width: 0 }}
-                                                animate={{ width: `${metric.value}%` }}
+                                                animate={{ width: `${metric.value || 0}%` }}
                                                 className="h-full bg-nm-accent rounded-full shadow-[0_0_8px_rgba(102,126,234,0.3)]"
                                             />
                                         </div>
                                     </div>
                                 ))}
                             </div>
+
+                            {/* AI Breakdown Description */}
+                            {metrics?.authenticity_details?.details && (
+                                <div className="mt-8 p-6 bg-nm-bg rounded-3xl shadow-nm-extruded border border-nm-accent/10">
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <Shield size={16} className="text-nm-accent" />
+                                        <span className="text-[10px] font-bold tracking-widest text-nm-accent uppercase">AI Forensics Report</span>
+                                    </div>
+                                    <p className="text-sm font-medium text-nm-fg leading-relaxed">
+                                        {metrics.authenticity_details.details}
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

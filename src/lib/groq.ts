@@ -8,6 +8,10 @@ function getGroqClient() {
 
 export interface CodeAnalysisResult {
     overall_score: number;
+    authenticity: {
+        score: number;
+        details: string;
+    };
     scalability: {
         score: number;
         details: string;
@@ -38,7 +42,8 @@ export async function analyzeCode(
     repoName: string,
     languages: Record<string, number>,
     fileContents: { path: string; content: string }[],
-    projectType: string
+    projectType: string,
+    commitInfo: any
 ): Promise<CodeAnalysisResult> {
     const groq = getGroqClient();
 
@@ -51,7 +56,12 @@ export async function analyzeCode(
         .map((f) => `--- File: ${f.path} ---\n${f.content.slice(0, 3000)}`)
         .join('\n\n');
 
-    const prompt = `Provide a deep technical audit of this repository. This project could use ANY technology stack (Web, Mobile, AI, Systems, etc.). Evaluate the code through the lens of a Senior Architect. 
+    const commitContext = commitInfo.recentCommits
+        .slice(0, 50)
+        .map((c: any) => `- [${c.date}] ${c.author}: ${c.message}`)
+        .join('\n');
+
+    const prompt = `Provide a deep technical audit of this repository. This project could use ANY technology stack (Web, Mobile, AI, Systems, etc.). Evaluate the code through the lens of a Senior Architect and Code Forensics Expert.
 
 Specific instructions:
 1. Identify the core technology stack and architecture patterns used.
@@ -63,8 +73,13 @@ Specific instructions:
    - Code Quality: Maintainability, documentation, and testing approach.
    - Best Practices: Adherence to modern conventions for the identified stack.
    - Architecture: Separation of concerns and structural integrity.
+5. AI-Generated Code Detection:
+   Score 0-100% human-written based on code diversity, comments, error handling patterns, watermark patterns, commit message quality, and uniform style. Generate a concise breakdown string for the 'authenticity.details' field (e.g., "92% Authentic (12mo commits, varied style)", "40% Authentic (Uniform logic, generic commits)").
 
-Be fair but thorough. Score realistically. A 90+ score should be reserved for truly exceptional, production-grade code.`;
+Here is the recent commit history for context:
+${commitContext}
+
+Be fair but thorough. Score realistically. A 90+ score should be reserved for truly exceptional, production-grade code. Return the response using the strict JSON schema provided.`;
 
     const completion = await groq.chat.completions.create({
         messages: [{ role: 'user', content: prompt }],
@@ -82,6 +97,11 @@ Be fair but thorough. Score realistically. A 90+ score should be reserved for tr
             const parsed = JSON.parse(jsonMatch[0]) as CodeAnalysisResult;
             // Clamp scores between 0-100
             parsed.overall_score = Math.min(100, Math.max(0, parsed.overall_score));
+            if (parsed.authenticity) {
+                parsed.authenticity.score = Math.min(100, Math.max(0, parsed.authenticity.score));
+            } else {
+                parsed.authenticity = { score: 75, details: "Authenticity estimate unavailable." };
+            }
             parsed.scalability.score = Math.min(100, Math.max(0, parsed.scalability.score));
             parsed.security.score = Math.min(100, Math.max(0, parsed.security.score));
             parsed.code_quality.score = Math.min(100, Math.max(0, parsed.code_quality.score));
@@ -96,6 +116,7 @@ Be fair but thorough. Score realistically. A 90+ score should be reserved for tr
     // Fallback response if parsing fails
     return {
         overall_score: 65,
+        authenticity: { score: 60, details: "Analysis could not be fully parsed." },
         scalability: { score: 60, details: 'Analysis could not be fully parsed.' },
         security: { score: 60, details: 'Analysis could not be fully parsed.' },
         code_quality: { score: 65, details: 'Analysis could not be fully parsed.' },
