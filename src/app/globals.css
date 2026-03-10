@@ -1,26 +1,256 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* Typography */
+  --font-sans: "DM Sans", sans-serif;
+  --font-display: "Plus Jakarta Sans", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Neumorphic Palette (Cool Grey Discipline) */
+  --color-nm-bg: #e0e5ec;
+  --color-nm-fg: #3d4852;
+  --color-nm-muted: #6b7280;
+  --color-nm-accent: #6c63ff;
+  --color-nm-accent-light: #8b84ff;
+  --color-nm-accent-secondary: #38b2ac;
+
+  /* Shadow Colors (RGBA for Smoothness) */
+  --shadow-nm-light: rgba(255, 255, 255, 0.5);
+  --shadow-nm-dark: rgba(163, 177, 198, 0.6);
+
+  /* Radius Scale (Soft & Tactile) */
+  --radius-nm-sm: 12px;
+  --radius-nm-md: 16px;
+  --radius-nm-lg: 24px;
+  --radius-nm-xl: 32px;
+  --radius-nm-full: 9999px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  body {
+    background-color: var(--color-nm-bg);
+    color: var(--color-nm-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    margin: 0;
+    transition: background-color 0.4s ease, color 0.4s ease;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--color-nm-fg);
+  }
+
+  ::selection {
+    background-color: var(--color-nm-accent);
+    color: white;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+
+  /* Extruded (Raised) Shadows - The Resting State */
+  .shadow-nm-extruded {
+    box-shadow: 9px 9px 16px var(--shadow-nm-dark),
+      -9px -9px 16px var(--shadow-nm-light);
+  }
+
+  /* Extruded Hover (Lifted) */
+  .shadow-nm-lifted {
+    box-shadow: 12px 12px 20px rgba(163, 177, 198, 0.7),
+      -12px -12px 20px rgba(255, 255, 255, 0.6);
+  }
+
+  /* Inset (Pressed/Deep) - Wells and Active States */
+  .shadow-nm-inset {
+    box-shadow: inset 6px 6px 10px var(--shadow-nm-dark),
+      inset -6px -6px 10px var(--shadow-nm-light);
+  }
+
+  .shadow-nm-inset-deep {
+    box-shadow: inset 10px 10px 20px rgba(163, 177, 198, 0.7),
+      inset -10px -10px 20px rgba(255, 255, 255, 0.6);
+  }
+
+  /* Animations */
+  @keyframes nm-float {
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  .animate-nm-float {
+    animation: nm-float 3s ease-in-out infinite;
+  }
+}
+
+@layer components {
+
+  /* Neumorphic Button Base (Legacy or explicit usage) */
+  .btn-nm {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 3rem;
+    /* 12 */
+    padding-left: 2rem;
+    /* 8 */
+    padding-right: 2rem;
+    /* 8 */
+    border-radius: 1rem;
+    /* 2xl is 16px usually, let's stick to 16px/1rem */
+    font-weight: 700;
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+    background-color: var(--color-nm-bg);
+    color: var(--color-nm-fg);
+  }
+
+  .btn-nm:active {
+    scale: 0.95;
+  }
+
+  .btn-nm-primary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 3rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
+    border-radius: 1rem;
+    font-weight: 700;
+    transition: all 300ms;
+    color: white;
+    background-color: var(--color-nm-accent);
+    box-shadow: 5px 5px 15px rgba(108, 99, 255, 0.3),
+      -5px -5px 15px rgba(108, 99, 255, 0.1);
+  }
+
+  .btn-nm-primary:active {
+    scale: 0.95;
+    box-shadow: inset 4px 4px 8px rgba(0, 0, 0, 0.2),
+      inset -4px -4px 8px rgba(255, 255, 255, 0.2);
+  }
+
+  .btn-nm-secondary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 3rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
+    border-radius: 1rem;
+    font-weight: 700;
+    transition: all 300ms;
+    background-color: var(--color-nm-bg);
+    color: var(--color-nm-fg);
+    /* Manually applying shadows to avoid @apply issues */
+    box-shadow: 9px 9px 16px var(--shadow-nm-dark),
+      -9px -9px 16px var(--shadow-nm-light);
+  }
+
+  .btn-nm-secondary:hover {
+    box-shadow: 12px 12px 20px rgba(163, 177, 198, 0.7),
+      -12px -12px 20px rgba(255, 255, 255, 0.6);
+    translate: 0 -2px;
+  }
+
+  .btn-nm-secondary:active {
+    scale: 0.95;
+    translate: 0 2px;
+    box-shadow: inset 6px 6px 10px var(--shadow-nm-dark),
+      inset -6px -6px 10px var(--shadow-nm-light);
+  }
+
+  /* Neumorphic Card */
+  .card-nm {
+    border-radius: 2rem;
+    /* 32px */
+    padding: 2rem;
+    background-color: var(--color-nm-bg);
+    box-shadow: 9px 9px 16px var(--shadow-nm-dark),
+      -9px -9px 16px var(--shadow-nm-light);
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 500ms;
+  }
+
+  .card-nm:hover {
+    box-shadow: 12px 12px 20px rgba(163, 177, 198, 0.7),
+      -12px -12px 20px rgba(255, 255, 255, 0.6);
+  }
+
+  /* Neumorphic Input */
+  .input-nm {
+    width: 100%;
+    height: 3.5rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    border-radius: 1rem;
+    background-color: var(--color-nm-bg);
+    box-shadow: inset 6px 6px 10px var(--shadow-nm-dark),
+      inset -6px -6px 10px var(--shadow-nm-light);
+    transition: all 300ms;
+    border: none;
+    color: var(--color-nm-fg);
+    outline: none;
+  }
+
+  .input-nm:focus {
+    box-shadow: inset 10px 10px 20px rgba(163, 177, 198, 0.7),
+      inset -10px -10px 20px rgba(255, 255, 255, 0.6);
+    box-shadow: inset 10px 10px 20px rgba(163, 177, 198, 0.7),
+      inset -10px -10px 20px rgba(255, 255, 255, 0.6),
+      0 0 0 2px rgba(108, 99, 255, 0.2);
+  }
+
+  .input-nm::placeholder {
+    color: rgba(107, 114, 128, 0.5);
+    /* nm-muted/50 */
+  }
+
+  /* Decorative Wells */
+  .well-nm {
+    border-radius: 9999px;
+    background-color: var(--color-nm-bg);
+    box-shadow: inset 10px 10px 20px rgba(163, 177, 198, 0.7),
+      inset -10px -10px 20px rgba(255, 255, 255, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-nm-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--shadow-nm-dark);
+  border-radius: 10px;
+  border: 2px solid var(--color-nm-bg);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-nm-muted);
 }
