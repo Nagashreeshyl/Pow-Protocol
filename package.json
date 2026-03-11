@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@babel/eslint-parser": "^7.28.6",
-    "@clerk/nextjs": "^7.0.2",
     "@octokit/rest": "^22.0.1",
     "chart.js": "^4.5.1",
     "eslint-plugin-complexity": "^1.0.2",
