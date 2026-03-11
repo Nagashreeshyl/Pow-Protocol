@@ -177,17 +177,39 @@ export async function getRepoInfo(owner: string, repo: string): Promise<RepoInfo
 export async function getIssueInfo(owner: string, repo: string): Promise<IssueInfo> {
     const octokit = getOctokit();
     try {
-        const { data: issues } = await octokit.issues.listForRepo({
+        const { data: issues, headers } = await octokit.issues.listForRepo({
             owner,
             repo,
             state: 'all',
-            per_page: 100,
+            per_page: 1,
         });
 
-        return {
-            total: issues.length,
-            closed: issues.filter((i) => i.state === 'closed').length,
-        };
+        let total = 0;
+        const link = headers.link;
+        if (link) {
+            const match = link.match(/&page=(\d+)>; rel="last"/);
+            total = match ? parseInt(match[1]) : issues.length;
+        } else {
+            total = issues.length;
+        }
+
+        const { data: closedIssues, headers: closedHeaders } = await octokit.issues.listForRepo({
+            owner,
+            repo,
+            state: 'closed',
+            per_page: 1,
+        });
+
+        let closed = 0;
+        const closedLink = closedHeaders.link;
+        if (closedLink) {
+            const match = closedLink.match(/&page=(\d+)>; rel="last"/);
+            closed = match ? parseInt(match[1]) : closedIssues.length;
+        } else {
+            closed = closedIssues.length;
+        }
+
+        return { total, closed };
     } catch {
         return { total: 0, closed: 0 };
     }

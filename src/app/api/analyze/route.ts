@@ -100,13 +100,14 @@ export async function POST(req: NextRequest) {
             }
         };
 
+        const perfScore = Math.max(0, 100 - (bugReport.count * 2));
         const scores = {
-            performance: 92,
+            performance: perfScore,
             scalability: Math.min(100, 60 + repoData.forks * 2),
             security: Math.max(0, 100 - (credentials.count * 25 + bugReport.count * 5)),
             code_quality: quality.grade === 'A' ? 95 : 80,
             authenticity: humanScore,
-            overall: Math.round((humanScore + impact.score + (100 - bugReport.count)) / 3)
+            overall: Math.round((humanScore + impact.score + perfScore + (100 - (credentials.count * 10))) / 4)
         };
 
         await updateDoc(doc(db, "verifications", jobId), {
