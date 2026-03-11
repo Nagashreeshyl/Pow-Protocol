@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
             credentials,
             bugs: bugReport.details,
             timeline: timelineNodes,
+            repo_url: repoUrl,
             language: { primary: Object.keys(repoData.languages)[0] || 'TS', confidence: 1.0, deps: skills.slice(0, 10) },
             authenticity: {
                 human: humanScore,

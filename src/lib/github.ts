@@ -57,6 +57,7 @@ export interface TimelineNode {
     type: 'commit' | 'pr' | 'action';
     label: string;
     date: string;
+    url?: string;
     message?: string;
 }
 
@@ -228,6 +229,7 @@ export async function getRepoTimeline(owner: string, repo: string): Promise<Time
                 label: `Commit by ${c.commit.author?.name || 'Unknown'}`,
                 date: c.commit.author?.date || '',
                 message: c.commit.message,
+                url: `https://github.com/${owner}/${repo}/commit/${c.sha}`,
             });
         });
 
@@ -239,6 +241,7 @@ export async function getRepoTimeline(owner: string, repo: string): Promise<Time
                 label: `PR #${p.number}: ${p.state}`,
                 date: p.created_at || '',
                 message: p.title,
+                url: p.html_url,
             });
         });
 

@@ -350,11 +350,22 @@ export default function ResultsPage() {
                             <AnimatePresence>{expandedCard === 'bugs' && (
                                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
                                     <div className="px-6 pb-6 pt-4 border-t border-white/5 space-y-3">
-                                        {metrics.bugs.length === 0 ? (<p className="text-sm text-green-500 font-bold">No issues detected. ✅</p>) : (
+                                        {metrics.bugs.length === 0 ? (<p className="text-sm text-nm-fg font-bold">No issues detected. ✅</p>) : (
                                             metrics.bugs.map((bug: any, idx: number) => (
-                                                <div key={idx} className="bg-black/10 p-4 rounded-lg text-nm-fg">
-                                                    <div className="text-xs font-bold text-nm-accent">{bug.file}:{bug.line}</div>
-                                                    <div className="text-sm text-nm-muted">{bug.desc}</div>
+                                                <div key={idx} className="bg-black/10 p-4 rounded-lg text-nm-fg flex items-center justify-between gap-4">
+                                                    <div>
+                                                        <div className="text-xs font-bold text-nm-accent">{bug.file}:{bug.line}</div>
+                                                        <div className="text-sm text-nm-muted">{bug.desc}</div>
+                                                    </div>
+                                                    <a
+                                                        href={`${data.repo_url}/blob/main/${bug.file}#L${bug.line}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="p-2 rounded-xl shadow-nm-extruded hover:shadow-nm-inset text-nm-accent transition-all"
+                                                        title="View Source"
+                                                    >
+                                                        <ExternalLink size={16} />
+                                                    </a>
                                                 </div>
                                             ))
                                         )}
@@ -469,9 +480,26 @@ export default function ResultsPage() {
                             <AnimatePresence>
                                 {expandedCard === 'credentials' && metrics.credentials.count > 0 && (
                                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
-                                        <div className="px-6 pb-6 pt-4 border-t border-white/5 space-y-2">
-                                            {metrics.credentials.details.map((cred: string, i: number) => (
-                                                <div key={i} className="text-xs font-mono text-red-400 bg-red-400/5 p-2 rounded border border-red-500/20">{cred}</div>
+                                        <div className="px-6 pb-6 pt-4 border-t border-white/5 space-y-4">
+                                            {metrics.credentials.details.map((cred: any, i: number) => (
+                                                <div key={i} className="flex flex-col gap-2 p-3 rounded bg-red-400/5 border border-red-500/20">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-mono text-red-400">
+                                                            {cred.file}:{cred.line}
+                                                        </span>
+                                                        <a
+                                                            href={`${data.repo_url}/blob/main/${cred.file}#L${cred.line}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center gap-1 text-[10px] font-bold text-nm-accent hover:underline uppercase"
+                                                        >
+                                                            View Source <ExternalLink size={10} />
+                                                        </a>
+                                                    </div>
+                                                    <div className="text-[10px] font-mono text-nm-muted truncate opacity-60">
+                                                        {cred.preview}
+                                                    </div>
+                                                </div>
                                             ))}
                                         </div>
                                     </motion.div>
@@ -501,12 +529,30 @@ export default function ResultsPage() {
                                         <div className="px-6 pb-8 pt-4 border-t border-white/5">
                                             <div className="relative pl-8 border-l border-nm-muted/20 space-y-8 ml-2">
                                                 {metrics.timeline.map((event: any, idx: number) => (
-                                                    <div key={idx} className="relative">
-                                                        <div className="absolute -left-[37.5px] top-1 p-1 bg-white rounded-full border border-nm-muted/20">
+                                                    <div key={idx} className="relative group/item">
+                                                        <div className="absolute -left-[37.5px] top-1 p-1 bg-white rounded-full border border-nm-muted/20 group-hover/item:border-nm-accent transition-colors">
                                                             {event.type === 'commit' ? <GitBranch size={12} className="text-blue-500" /> : <Calendar size={12} className="text-purple-500" />}
                                                         </div>
                                                         <div className="text-[10px] font-bold text-nm-muted uppercase tracking-widest">{new Date(event.date).toLocaleDateString()}</div>
-                                                        <div className="text-sm font-bold text-nm-fg">{event.label}</div>
+                                                        <div className="flex items-center justify-between gap-4">
+                                                            <div className="text-sm font-bold text-nm-fg">{event.label}</div>
+                                                            {event.url && (
+                                                                <a
+                                                                    href={event.url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="p-1.5 rounded-lg shadow-nm-extruded hover:shadow-nm-inset text-nm-muted hover:text-nm-accent transition-all"
+                                                                    title="View on GitHub"
+                                                                >
+                                                                    <ExternalLink size={14} />
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                        {event.message && (
+                                                            <div className="text-[10px] text-nm-muted mt-1 italic truncate opacity-70">
+                                                                {event.message}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 ))}
                                             </div>

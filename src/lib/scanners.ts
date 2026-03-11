@@ -90,7 +90,7 @@ export function scanForCredentials(repoPath: string) {
         /ghp_[a-zA-Z0-9]{36}/
     ];
     let count = 0;
-    const details: string[] = [];
+    const details: any[] = [];
 
     const walk = (dir: string) => {
         fs.readdirSync(dir).forEach(f => {
@@ -103,7 +103,13 @@ export function scanForCredentials(repoPath: string) {
                     credPatterns.forEach(pat => {
                         if (pat.test(line)) {
                             count++;
-                            if (details.length < 10) details.push(`Potential secret in ${path.relative(repoPath, p)}:${idx + 1}`);
+                            if (details.length < 10) {
+                                details.push({
+                                    file: path.relative(repoPath, p),
+                                    line: idx + 1,
+                                    preview: line.trim().substring(0, 50) + (line.length > 50 ? '...' : '')
+                                });
+                            }
                         }
                     });
                 });
