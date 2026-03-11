@@ -10,11 +10,12 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: "Missing userId" }, { status: 400 });
         }
 
+        // To avoid Firebase index errors during hackathon, we fetch and sort client-side
+        // until the user manually creates the index via the link in the logs.
         try {
             const q = query(
                 collection(db, "verifications"),
-                where("user_id", "==", userId),
-                orderBy("created_at", "desc")
+                where("user_id", "==", userId)
             );
 
             const querySnapshot = await getDocs(q);
@@ -23,32 +24,17 @@ export async function GET(req: NextRequest) {
                 ...doc.data()
             }));
 
+            // Sort client-side by created_at desc
+            verifications.sort((a: any, b: any) => {
+                const dateA = new Date(a.created_at || a.updated_at?.toDate?.() || 0).getTime();
+                const dateB = new Date(b.created_at || b.updated_at?.toDate?.() || 0).getTime();
+                return dateB - dateA;
+            });
+
             return NextResponse.json({ verifications });
         } catch (err: any) {
-            console.error("List error (primary query):", err);
-
-            // Fallback for missing index: try without orderBy
-            try {
-                const q = query(
-                    collection(db, "verifications"),
-                    where("user_id", "==", userId)
-                );
-                const querySnapshot = await getDocs(q);
-                const verifications = querySnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-
-                // Sort client-side as fallback
-                verifications.sort((a: any, b: any) =>
-                    new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
-                );
-
-                return NextResponse.json({ verifications });
-            } catch (fallbackErr) {
-                console.error("List error (fallback query):", fallbackErr);
-                return NextResponse.json({ verifications: [] });
-            }
+            console.error("List error:", err);
+            return NextResponse.json({ verifications: [] });
         }
     } catch (outerErr) {
         console.error("Outer List error:", outerErr);

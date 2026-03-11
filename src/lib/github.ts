@@ -1,4 +1,8 @@
 import { Octokit } from '@octokit/rest';
+import { exec } from 'child_process';
+import util from 'util';
+
+const execAsync = util.promisify(exec);
 
 function getOctokit() {
     return new Octokit({
@@ -37,6 +41,18 @@ export interface CommitInfo {
     contributors: string[];
     firstCommitDate: string;
     lastCommitDate: string;
+}
+
+export interface IssueInfo {
+    total: number;
+    closed: number;
+}
+
+export interface TimelineNode {
+    type: 'commit' | 'pr' | 'action';
+    label: string;
+    date: string;
+    message?: string;
 }
 
 export interface FileContent {
@@ -99,6 +115,59 @@ export async function getRepoInfo(owner: string, repo: string): Promise<RepoInfo
         hasCI,
         license: repoData.license?.name || null,
     };
+}
+
+export async function getIssueInfo(owner: string, repo: string): Promise<IssueInfo> {
+    const octokit = getOctokit();
+    try {
+        const { data: issues } = await octokit.issues.listForRepo({
+            owner,
+            repo,
+            state: 'all',
+            per_page: 100,
+        });
+
+        return {
+            total: issues.length,
+            closed: issues.filter((i) => i.state === 'closed').length,
+        };
+    } catch {
+        return { total: 0, closed: 0 };
+    }
+}
+
+export async function getRepoTimeline(owner: string, repo: string): Promise<TimelineNode[]> {
+    const octokit = getOctokit();
+    const timeline: TimelineNode[] = [];
+
+    try {
+        // Commits
+        const { data: commits } = await octokit.repos.listCommits({ owner, repo, per_page: 15 });
+        commits.forEach((c) => {
+            timeline.push({
+                type: 'commit',
+                label: `Commit by ${c.commit.author?.name || 'Unknown'}`,
+                date: c.commit.author?.date || '',
+                message: c.commit.message,
+            });
+        });
+
+        // PRs
+        const { data: pulls } = await octokit.pulls.list({ owner, repo, state: 'all', per_page: 10 });
+        pulls.forEach((p) => {
+            timeline.push({
+                type: 'pr',
+                label: `PR #${p.number}: ${p.state}`,
+                date: p.created_at || '',
+                message: p.title,
+            });
+        });
+
+        // Sort by date descending
+        return timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    } catch {
+        return timeline;
+    }
 }
 
 export async function getCommitInfo(owner: string, repo: string): Promise<CommitInfo> {
@@ -239,4 +308,15 @@ export async function getRepoFiles(
     }
 
     return files;
+}
+
+export async function cloneRepository(repoUrl: string, jobId: string): Promise<string> {
+    const tmpDir = `/tmp/${jobId}`;
+    try {
+        await execAsync(`rm -rf ${tmpDir}`);
+        await execAsync(`git clone ${repoUrl} ${tmpDir}`);
+        return tmpDir;
+    } catch (e: any) {
+        throw new Error(`Failed to clone repository: ${e.message}`);
+    }
 }
