@@ -6,7 +6,7 @@ const execAsync = util.promisify(exec);
 
 function getOctokit() {
     return new Octokit({
-        auth: process.env.GITHUB_PAT,
+        auth: process.env.GITHUB_TOKEN || process.env.GITHUB_PAT,
     });
 }
 
@@ -25,9 +25,11 @@ export interface RepoInfo {
     hasTests: boolean;
     hasCI: boolean;
     license: string | null;
-    totalCommits?: number;
-    totalContributors?: number;
-    totalLines?: number;
+    totalCommits: number;
+    totalContributors: number;
+    totalLines: number;
+    totalFiles: number;
+    codeFrequency?: [number, number, number][]; // [timestamp, additions, deletions]
 }
 
 export interface CommitInfo {
@@ -102,9 +104,11 @@ export async function getRepoInfo(owner: string, repo: string): Promise<RepoInfo
     let totalCommits = 0;
     let totalContributors = 0;
     let totalLines = 0;
+    let totalFiles = 0;
+    let codeFrequency: [number, number, number][] = [];
 
     try {
-        // Total Commits trick: per_page=1 and look at the last page in Link header
+        // Total Commits
         const commitRes = await octokit.repos.listCommits({ owner, repo, per_page: 1 });
         const link = commitRes.headers.link;
         if (link) {
@@ -115,7 +119,7 @@ export async function getRepoInfo(owner: string, repo: string): Promise<RepoInfo
         }
 
         // Contributors
-        const contribRes = await octokit.repos.listContributors({ owner, repo, per_page: 1, anon: "false" });
+        const contribRes = await octokit.repos.listContributors({ owner, repo, per_page: 1 });
         const contribLink = contribRes.headers.link;
         if (contribLink) {
             const match = contribLink.match(/&page=(\d+)>; rel="last"/);
@@ -124,10 +128,27 @@ export async function getRepoInfo(owner: string, repo: string): Promise<RepoInfo
             totalContributors = contribRes.data.length;
         }
 
-        // Lines estimate based on bytes (approx 45 bytes per line for code)
-        totalLines = Math.round(repoData.size * 1024 / 45);
+        // Code Frequency (Lines added/deleted)
+        const freqRes = await octokit.repos.getCodeFrequencyStats({ owner, repo });
+        codeFrequency = freqRes.data as [number, number, number][];
+
+        // Total Lines (heuristic from frequency if available, else size)
+        if (codeFrequency && codeFrequency.length > 0) {
+            totalLines = codeFrequency.reduce((acc, curr) => acc + curr[1] + curr[2], 0);
+        } else {
+            totalLines = Math.round(repoData.size * 1024 / 45);
+        }
+
+        // Total Files count from tree
+        const { data: treeData } = await octokit.git.getTree({
+            owner,
+            repo,
+            tree_sha: repoData.default_branch,
+            recursive: 'true'
+        });
+        totalFiles = treeData.tree.filter(f => f.type === 'blob').length;
     } catch (e) {
-        console.error("Stats fetch failed:", e);
+        console.error("GitHub stats fetch failed:", e);
     }
 
     return {
@@ -148,6 +169,8 @@ export async function getRepoInfo(owner: string, repo: string): Promise<RepoInfo
         totalCommits,
         totalContributors,
         totalLines,
+        totalFiles,
+        codeFrequency
     };
 }
 

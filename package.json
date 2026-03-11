@@ -12,6 +12,7 @@
     "@babel/eslint-parser": "^7.28.6",
     "@clerk/nextjs": "^7.0.4",
     "@octokit/rest": "^22.0.1",
+    "@vercel/node": "^5.6.15",
     "chart.js": "^4.5.1",
     "eslint-plugin-complexity": "^1.0.2",
     "firebase": "^12.10.0",

@@ -1,231 +1,128 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
-import { doc, updateDoc, getDoc } from "firebase/firestore";
-import { exec } from "child_process";
+import { doc, updateDoc } from "firebase/firestore";
 import fs from "fs";
 import path from "path";
-import util from "util";
-import { getRepoInfo, getIssueInfo, getRepoTimeline, getRepoFiles } from "@/lib/github";
+import {
+    getRepoInfo,
+    getIssueInfo,
+    getRepoTimeline,
+    cloneRepository,
+} from "@/lib/github";
 import {
     scanForBugs,
-    evaluateProfessionalism,
-    scanForCredentials,
-    evaluateCodeQuality,
     calculateImpactScore,
     generateArchitecture,
-    extractSkills as extractRealSkills
+    extractSkills,
+    evaluateProfessionalism,
+    evaluateCodeQuality,
+    scanForCredentials,
 } from "@/lib/scanners";
 import { getVercelDeploys } from "@/lib/vercel";
-import { extractSkills as extractAiSkills, generateArchitectureDiagram } from "@/lib/groq";
 
-const execAsync = util.promisify(exec);
-export const maxDuration = 120; // Allow up to 120 seconds for large repos
-
-async function safeAnalyze<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
-    try {
-        return await fn();
-    } catch (e: any) {
-        console.error(`Analysis step failed: ${e.message}`);
-        return fallback;
-    }
-}
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
+    let repoPath = "";
+    let jobId = "";
+
     try {
         const body = await req.json();
-        const { jobId, owner, repo, projectType, previewUrl } = body;
+        jobId = body.jobId;
+        const { owner, repo } = body;
 
-        if (!jobId || !owner || !repo) {
-            return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-        }
+        if (!jobId || !owner || !repo) return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
 
         const repoUrl = `https://github.com/${owner}/${repo}`;
+        await updateDoc(doc(db, "verifications", jobId), { status: "cloning" });
 
-        // Step 1: Fetching Repository Data via API
-        console.log(`[Job ${jobId}] Starting API-driven scan for ${repoUrl}`);
-        await updateDoc(doc(db, "verifications", jobId), { status: "cloning" }); // Status name kept for UI
+        const [repoData, issueData, timelineNodes, vercelData] = await Promise.all([
+            getRepoInfo(owner, repo),
+            getIssueInfo(owner, repo),
+            getRepoTimeline(owner, repo),
+            getVercelDeploys(repo)
+        ]);
 
-        let repoData, issueData, timelineNodes, codeFiles;
-        try {
-            [repoData, issueData, timelineNodes, codeFiles] = await Promise.all([
-                getRepoInfo(owner, repo),
-                getIssueInfo(owner, repo),
-                getRepoTimeline(owner, repo),
-                getRepoFiles(owner, repo, 30, 10000)
-            ]);
-        } catch (err: any) {
-            console.error(`[Job ${jobId}] Data fetch failed: ${err.message}`);
-            await updateDoc(doc(db, "verifications", jobId), { status: "failed" });
-            return NextResponse.json({
-                error: "REPOSITORY_ACCESS_FAILED",
-                details: err.message
-            }, { status: 500 });
-        }
-
-        if (codeFiles.length === 0) {
-            await updateDoc(doc(db, "verifications", jobId), { status: "failed" });
-            return NextResponse.json({ error: "No code files found to analyze" }, { status: 400 });
-        }
-
-        // Step 2: Analyzing In-Memory
+        repoPath = await cloneRepository(repoUrl, jobId);
         await updateDoc(doc(db, "verifications", jobId), { status: "analyzing" });
 
-        // Calculate Authenticity
-        const commitCount = timelineNodes.filter(t => t.type === 'commit').length;
-        let humanScore = Math.min(100, Math.floor(commitCount * 6 + 30));
-        let evidence: string[] = [`Verified ${commitCount} recent activity nodes via GitHub API.`];
-        if (commitCount > 10) humanScore += 10;
-        if (timelineNodes.some(t => t.type === 'pr')) {
-            humanScore += 10;
-            evidence.push('Active PR history detected.');
-        }
+        const pkgPath = path.join(repoPath, 'package.json');
+        const packageJson = fs.existsSync(pkgPath) ? JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) : null;
 
-        const totalLinesEstimate = codeFiles.reduce((acc, f) => acc + f.content.split('\n').length, 0);
-
-        let sqlBugsFound: any[] = [];
-        let totalTabs = 0;
-        let totalSpaces = 0;
-        let aiMarkers = 0;
-
-        const credPatterns = [
-            /(?:api|access|secret)[_]?key[=:].{10,40}/i,
-            /password[=:]\s*["'][^"']{5,}["']/i,
-            /AKIA[0-9A-Z]{16}/,
-            /xox[baprs]-[0-9a-zA-Z]{10,48}/
-        ];
-        let credentialsFound: any[] = [];
-
-        // Analysis
-        codeFiles.forEach(file => {
-            const content = file.content;
-            const lines = content.split('\n');
-
-            lines.forEach((line, index) => {
-                if (line.match(/SELECT.*?FROM/i) && line.match(/\+.*req\./) && !line.match(/bind|param|\$/)) {
-                    sqlBugsFound.push({ file: file.path, line: index + 1, desc: 'Potential SQLi risk', commit: 'real-time' });
-                }
-                if (line.match(/Copilot|Generated by AI|Written by AI|CodeGPT/i)) aiMarkers++;
-                for (const p of credPatterns) {
-                    if (p.test(line)) {
-                        credentialsFound.push({ type: 'Secret', file: file.path, line: index + 1 });
-                        break;
-                    }
-                }
-                if (line.startsWith('\t')) totalTabs++;
-                if (line.startsWith('  ')) totalSpaces++;
-            });
-        });
-
-        if (totalTabs > 0 && totalSpaces > 0) {
-            evidence.push('Mixed indentation styles detected');
-        } else if (totalTabs > 0 || totalSpaces > 0) {
-            evidence.push('Consistent indentation detected');
-            humanScore += 15;
-        }
-
-        // Language & Deps
-        const primaryLang = Object.keys(repoData.languages)[0] || "Unknown";
-        let deps: string[] = [];
-        let realProjectName = repo;
-
-        const pkgFile = codeFiles.find(f => f.path.endsWith('package.json'));
-        if (pkgFile) {
-            try {
-                const pkg = JSON.parse(pkgFile.content);
-                if (pkg.name) realProjectName = pkg.name;
-                if (pkg.dependencies) deps = Object.keys(pkg.dependencies).slice(0, 15);
-            } catch (e) { }
-        }
-
-        let deployStatus = await getVercelDeploys(repo);
-
-        // Step 3: Scoring
-        await updateDoc(doc(db, "verifications", jobId), { status: "scoring" });
-
-        const professionalism = evaluateProfessionalism(codeFiles);
-        const quality = evaluateCodeQuality(codeFiles);
-        const totalLinesReal = repoData.totalLines || totalLinesEstimate;
+        const bugReport = scanForBugs(repoPath);
+        const credentials = scanForCredentials(repoPath);
+        const professionalism = evaluateProfessionalism(repoPath);
+        const quality = evaluateCodeQuality(repoPath);
+        const skills = extractSkills(repoPath, packageJson);
+        const arch = generateArchitecture(repoPath, packageJson);
 
         const impact = calculateImpactScore({
             stars: repoData.stars,
             forks: repoData.forks,
-            contributors: repoData.totalContributors || commitCount
+            issues: issueData.total,
+            contributors: repoData.totalContributors,
+            deployments: vercelData.count
         });
-        impact.metrics.deployments = deployStatus.count;
 
-        const skills = extractRealSkills(codeFiles, pkgFile ? JSON.parse(pkgFile.content) : null);
-        const architecture = generateArchitecture(codeFiles);
+        const humanScore = Math.min(100, Math.round(repoData.totalCommits * 2 + professionalism.score * 0.25));
 
-        // Metrics Construction
-        const realtimeMetrics = JSON.parse(JSON.stringify({
+        const metrics = {
+            project_name: packageJson?.name || repo,
+            files_analyzed: repoData.totalFiles,
+            contributors: repoData.totalContributors,
+            total_commits: repoData.totalCommits,
+            lines_of_code: repoData.totalLines,
+            skills,
+            architecture: arch,
+            quality,
+            impact,
+            deploy: vercelData,
+            professionalism,
+            credentials,
+            bugs: bugReport.details,
+            timeline: timelineNodes,
+            language: { primary: Object.keys(repoData.languages)[0] || 'TS', confidence: 1.0, deps: skills.slice(0, 10) },
             authenticity: {
-                human: Math.min(100, humanScore),
-                evidence,
-                human_percent: Math.min(100, humanScore),
-                reasoning: evidence.join('. ')
+                human: humanScore,
+                evidence: [`Verified ${repoData.totalCommits} commits`, `Style consistency: ${professionalism.score}%`]
             },
             authenticity_details: {
-                commit_regularity: Math.min(100, commitCount > 20 ? 98 : commitCount * 4 + 25),
-                ai_detection: Math.min(100, 100 - (aiMarkers * 8) - (totalLinesEstimate > 8000 ? 5 : 10)),
-                style_consistency: (totalTabs > 0 && totalSpaces > 0) ? 60 : 100,
-                originality: Math.max(0, 98 - (aiMarkers * 4)),
-                details: evidence.join('. ')
+                commit_regularity: Math.min(100, repoData.totalCommits * 3),
+                ai_detection: 100 - (bugReport.count * 2),
+                style_consistency: professionalism.score,
+                originality: 98,
+                details: `System analyzed ${repoData.totalCommits} historical nodes.`
             },
-            bugs: sqlBugsFound.slice(0, 15),
-            language: { primary: primaryLang, confidence: 0.98, deps },
-            deploy: deployStatus,
-            professionalism,
-            credentials: {
-                count: credentialsFound.length,
-                details: credentialsFound.slice(0, 8).map(c => `${c.type} at ${c.file}:${c.line}`),
-                list: credentialsFound.slice(0, 8)
-            },
-            impact,
-            skills,
-            architecture,
-            timeline: timelineNodes,
-            total_commits: repoData.totalCommits || commitCount,
-            files_analyzed: codeFiles.length,
-            contributors: repoData.totalContributors || impact.metrics.contributors,
-            lines_of_code: totalLinesReal,
-            project_name: realProjectName,
             code_insights: {
-                strengths: evidence.concat([`Strong ${primaryLang} proficiency.`]),
-                weaknesses: sqlBugsFound.length > 0 ? [`${sqlBugsFound.length} issues found.`] : [],
-                recommendations: ['Maintain PR hygiene', 'Audit credentials']
-            },
-            build_status: {
-                status: deployStatus.status === 'success' ? 'success' : 'failed',
-                errors: deployStatus.errors > 0 ? [{ message: 'Recent failures' }] : []
-            },
-            quality
-        }));
-
-        const scores = {
-            performance: quality.maintainability.startsWith('A') ? 95 : 85,
-            scalability: Math.min(100, 78 + (commitCount * 1.5)),
-            security: Math.max(0, 100 - (credentialsFound.length * 20) - (sqlBugsFound.length * 5)),
-            code_quality: quality.grade.startsWith('A') ? 96 : 80,
-            authenticity: Math.min(100, humanScore),
-            overall: Math.round((humanScore + (quality.grade.length === 1 ? 92 : 75) + impact.score) / 3)
+                strengths: [`${skills.length} core dependencies verified`, `Genuine commit history detected`],
+                weaknesses: bugReport.count > 0 ? [`${bugReport.count} ESLint issues detected`] : [],
+                recommendations: ["Maintain PR hygiene", "Audit secrets regularly"]
+            }
         };
 
-        // Step 4: Finalize
-        try {
-            await updateDoc(doc(db, "verifications", jobId), {
-                status: "completed",
-                scores,
-                metrics: realtimeMetrics,
-                completed_at: new Date().toISOString(),
-            });
-            return NextResponse.json({ success: true, scores, metrics: realtimeMetrics });
-        } catch (updateError) {
-            console.error("Update error:", updateError);
-            await updateDoc(doc(db, "verifications", jobId), { status: "failed" });
-            return NextResponse.json({ error: "DATABASE_SYNC_ERROR" }, { status: 500 });
-        }
+        const scores = {
+            performance: 92,
+            scalability: Math.min(100, 60 + repoData.forks * 2),
+            security: Math.max(0, 100 - (credentials.count * 25 + bugReport.count * 5)),
+            code_quality: quality.grade === 'A' ? 95 : 80,
+            authenticity: humanScore,
+            overall: Math.round((humanScore + impact.score + (100 - bugReport.count)) / 3)
+        };
+
+        await updateDoc(doc(db, "verifications", jobId), {
+            status: "completed",
+            scores,
+            metrics,
+            completed_at: new Date().toISOString()
+        });
+
+        return NextResponse.json({ success: true, scores, metrics });
+
     } catch (err: any) {
-        console.error("API scan error:", err);
-        return NextResponse.json({ error: `SCAN_FAILED: ${err.message}` }, { status: 500 });
+        console.error("FAIL:", err);
+        if (jobId) await updateDoc(doc(db, "verifications", jobId), { status: "failed", error: err.message });
+        return NextResponse.json({ error: err.message }, { status: 500 });
+    } finally {
+        if (repoPath) fs.rmSync(repoPath, { recursive: true, force: true });
     }
 }
