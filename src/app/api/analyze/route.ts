@@ -224,4 +224,8 @@ export async function POST(req: NextRequest) {
             await updateDoc(doc(db, "verifications", jobId), { status: "failed" });
             return NextResponse.json({ error: "DATABASE_SYNC_ERROR" }, { status: 500 });
         }
+    } catch (err: any) {
+        console.error("API scan error:", err);
+        return NextResponse.json({ error: `SCAN_FAILED: ${err.message}` }, { status: 500 });
     }
+}
