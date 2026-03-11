@@ -100,7 +100,12 @@ export async function POST(req: NextRequest) {
             }
         };
 
-        const perfScore = Math.max(0, 100 - (bugReport.count * 2));
+        // Real performance score: Duration of build + Bug count
+        const buildDuration = parseInt(vercelData.duration) || 30;
+        const speedScore = Math.max(0, 100 - (buildDuration / 2));
+        const healthScore = Math.max(0, 100 - (bugReport.count * 2));
+        const perfScore = Math.round((speedScore * 0.4) + (healthScore * 0.6));
+
         const scores = {
             performance: perfScore,
             scalability: Math.min(100, 60 + repoData.forks * 2),
