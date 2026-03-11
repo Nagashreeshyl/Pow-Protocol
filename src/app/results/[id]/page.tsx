@@ -358,7 +358,7 @@ export default function ResultsPage() {
                                                         <div className="text-sm text-nm-muted">{bug.desc}</div>
                                                     </div>
                                                     <a
-                                                        href={`${data.repo_url}/blob/main/${bug.file}#L${bug.line}`}
+                                                        href={`${v.repo_url}/blob/main/${bug.file}#L${bug.line}`}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="p-2 rounded-xl shadow-nm-extruded hover:shadow-nm-inset text-nm-accent transition-all"
@@ -488,7 +488,7 @@ export default function ResultsPage() {
                                                             {cred.file}:{cred.line}
                                                         </span>
                                                         <a
-                                                            href={`${data.repo_url}/blob/main/${cred.file}#L${cred.line}`}
+                                                            href={`${v.repo_url}/blob/main/${cred.file}#L${cred.line}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="flex items-center gap-1 text-[10px] font-bold text-nm-accent hover:underline uppercase"
