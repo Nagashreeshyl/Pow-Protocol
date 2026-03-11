@@ -185,7 +185,7 @@ export default function ResultsPage() {
         <div className="min-h-screen bg-nm-bg text-nm-fg">
             <Navbar />
             <div className="max-w-7xl mx-auto py-24 px-6">
-                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-12 mb-24">
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-12 mb-24 no-print">
                     <Link href="/dashboard" className="flex items-center gap-4 text-xs font-bold tracking-[0.2em] text-nm-accent uppercase group">
                         <ArrowLeft size={16} className="group-hover:-translate-x-2 transition-transform" /> Back to Dashboard
                     </Link>
@@ -643,9 +643,15 @@ export default function ResultsPage() {
                     )}
                 </div>
 
-                <div className="flex justify-center mt-20 mb-10">
-                    <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={generateQR} className="bg-nm-fg text-nm-bg px-10 py-5 rounded-full font-black uppercase tracking-tighter text-lg shadow-nm-extruded hover:shadow-nm-inset transition-all">
-                        Project_Verification_Badge
+                <div className="flex justify-center mt-20 mb-10 no-print">
+                    <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => window.print()}
+                        className="bg-nm-fg text-nm-bg px-10 py-5 rounded-full font-black uppercase tracking-tighter text-lg shadow-nm-extruded hover:shadow-nm-lifted active:shadow-nm-inset transition-all flex items-center gap-3"
+                    >
+                        <FileText size={20} />
+                        Export_As_PDF
                     </motion.button>
                 </div>
             </div>
