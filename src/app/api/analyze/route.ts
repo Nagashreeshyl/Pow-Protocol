@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+// Sentinel for Vercel rebuild: 1.0.1
 import { db } from "@/lib/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import fs from "fs";
