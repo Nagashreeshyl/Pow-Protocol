@@ -94,7 +94,7 @@ function VerifyContent() {
                 } else if (data.status === "failed") {
                     clearInterval(interval);
                     setStatus("failed");
-                    setError("SECURITY_SCAN_FAILED: CHECK REPO URL");
+                    setError(data.details || data.error || "SECURITY_SCAN_FAILED: CHECK REPO URL");
                 } else {
                     setStatus(data.status);
                     setStatusMessage(data.message);

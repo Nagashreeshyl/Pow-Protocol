@@ -33,6 +33,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${dmSans.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable}`}>
+      <head>
+        <meta httpEquiv="Content-Security-Policy" content="script-src 'self' 'unsafe-eval' 'unsafe-inline' https://apis.google.com https://www.gstatic.com; object-src 'none';" />
+      </head>
       <body className="bg-nm-bg text-nm-fg font-sans antialiased selection:bg-nm-accent selection:text-white">
         <AuthProvider>
           <main className="min-h-screen relative z-10 transition-colors duration-500">

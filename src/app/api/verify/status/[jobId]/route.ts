@@ -30,6 +30,8 @@ export async function GET(
         return NextResponse.json({
             status: data.status,
             message: statusMessages[data.status] || data.status.toUpperCase(),
+            error: data.error || null,
+            details: data.details || null
         });
     } catch (err) {
         console.error("Status error:", err);
