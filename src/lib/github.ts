@@ -63,8 +63,8 @@ export interface FileContent {
 
 export function parseRepoUrl(url: string): { owner: string; repo: string } | null {
     const patterns = [
-        /github\.com\/([^\/]+)\/([^\/\?\#]+)/,
-        /^([^\/]+)\/([^\/]+)$/,
+        /github\.com\/([^\/]+)\/([^\/\?\#]+)/i,
+        /^([^\/]+)\/([^\/]+)$/i,
     ];
     for (const pattern of patterns) {
         const match = url.match(pattern);
@@ -314,7 +314,8 @@ export async function cloneRepository(repoUrl: string, jobId: string): Promise<s
     const tmpDir = `/tmp/${jobId}`;
     try {
         await execAsync(`rm -rf ${tmpDir}`);
-        await execAsync(`git clone ${repoUrl} ${tmpDir}`);
+        const cloneUrl = repoUrl.toLocaleLowerCase().startsWith('http') ? repoUrl : `https://github.com/${repoUrl}`;
+        await execAsync(`git clone --depth 1 ${cloneUrl} ${tmpDir}`);
         return tmpDir;
     } catch (e: any) {
         throw new Error(`Failed to clone repository: ${e.message}`);

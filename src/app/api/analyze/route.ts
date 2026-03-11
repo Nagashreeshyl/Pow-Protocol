@@ -42,14 +42,20 @@ export async function POST(req: NextRequest) {
         const repoUrl = `https://github.com/${owner}/${repo}`;
 
         // Step 1: Cloning - Fetch repo info
+        console.log(`[Job ${jobId}] Starting clone for ${repoUrl}`);
         await updateDoc(doc(db, "verifications", jobId), { status: "cloning" });
 
         let tmpDir;
         try {
             tmpDir = await cloneRepository(repoUrl, jobId);
+            console.log(`[Job ${jobId}] Clone successful: ${tmpDir}`);
         } catch (err: any) {
+            console.error(`[Job ${jobId}] Clone failed: ${err.message}`);
             await updateDoc(doc(db, "verifications", jobId), { status: "failed" });
-            return NextResponse.json({ error: "Insufficient data (private repo?)" }, { status: 500 });
+            return NextResponse.json({
+                error: "REPOSITORY_ACCESS_FAILED",
+                details: "Check if the repo is public and the URL is correct."
+            }, { status: 500 });
         }
 
         // Step 2: Analyzing - Use actual file data APIs
