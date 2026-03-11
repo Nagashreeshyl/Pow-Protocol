@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
                 commit_regularity: Math.min(100, repoData.totalCommits * 3),
                 ai_detection: 100 - (bugReport.count * 2),
                 style_consistency: professionalism.score,
-                originality: 98,
+                originality: Math.max(0, 100 - quality.duplication),
                 details: `System analyzed ${repoData.totalCommits} historical nodes.`
             },
             code_insights: {
