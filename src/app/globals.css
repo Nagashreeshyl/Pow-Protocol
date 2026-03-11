@@ -254,3 +254,54 @@
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-nm-muted);
 }
+
+@media print {
+
+  .no-print,
+  nav,
+  button,
+  footer,
+  .btn-nm,
+  .btn-nm-primary {
+    display: none !important;
+  }
+
+  body {
+    background-color: white !important;
+    color: black !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .max-w-7xl {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .shadow-nm-extruded,
+  .shadow-nm-inset,
+  .shadow-nm-lifted {
+    box-shadow: none !important;
+    border: 1px solid #e0e5ec !important;
+  }
+
+  .bg-nm-bg {
+    background-color: white !important;
+  }
+
+  .text-nm-fg {
+    color: black !important;
+  }
+
+  .text-nm-accent {
+    color: #6c63ff !important;
+  }
+
+  /* Force charts and gauges to be visible */
+  canvas,
+  svg {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+}
