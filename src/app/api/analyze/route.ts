@@ -144,12 +144,12 @@ export async function POST(req: NextRequest) {
 
         const professionalism = evaluateProfessionalism(codeFiles);
         const quality = evaluateCodeQuality(codeFiles);
-        quality.duplication = Math.min(15, (totalLinesEstimate % 12));
+        const totalLinesReal = repoData.totalLines || totalLinesEstimate;
 
         const impact = calculateImpactScore({
             stars: repoData.stars,
             forks: repoData.forks,
-            contributors: commitCount
+            contributors: repoData.totalContributors || commitCount
         });
         impact.metrics.deployments = deployStatus.count;
 
@@ -184,10 +184,10 @@ export async function POST(req: NextRequest) {
             skills,
             architecture,
             timeline: timelineNodes,
-            total_commits: commitCount,
+            total_commits: repoData.totalCommits || commitCount,
             files_analyzed: codeFiles.length,
-            contributors: impact.metrics.contributors,
-            lines_of_code: totalLinesEstimate,
+            contributors: repoData.totalContributors || impact.metrics.contributors,
+            lines_of_code: totalLinesReal,
             project_name: realProjectName,
             code_insights: {
                 strengths: evidence.concat([`Strong ${primaryLang} proficiency.`]),

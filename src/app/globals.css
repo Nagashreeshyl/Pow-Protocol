@@ -257,37 +257,63 @@
 
 @media print {
 
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+    background-color: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   .no-print,
   nav,
   button,
   footer,
+  [role="dialog"],
+  [role="button"],
   .btn-nm,
   .btn-nm-primary {
     display: none !important;
   }
 
   body {
-    background-color: white !important;
-    color: black !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
 
+  .min-h-screen {
+    min-height: auto !important;
+    height: auto !important;
+  }
+
   .max-w-7xl {
     max-width: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
+    padding: 20mm !important;
+    /* Standard print margin */
+    margin: 0 auto !important;
   }
 
   .shadow-nm-extruded,
   .shadow-nm-inset,
-  .shadow-nm-lifted {
+  .shadow-nm-lifted,
+  .shadow-lg,
+  .shadow-2xl {
     box-shadow: none !important;
     border: 1px solid #e0e5ec !important;
   }
 
   .bg-nm-bg {
     background-color: white !important;
+  }
+
+  .bg-white\/80 {
+    background-color: white !important;
+  }
+
+  .backdrop-blur {
+    backdrop-filter: none !important;
   }
 
   .text-nm-fg {
@@ -298,10 +324,27 @@
     color: #6c63ff !important;
   }
 
+  /* Prevent page breaks inside cards */
+  .rounded-2xl,
+  .bg-nm-bg,
+  .p-8,
+  .p-12 {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
   /* Force charts and gauges to be visible */
   canvas,
   svg {
     max-width: 100% !important;
     height: auto !important;
+    display: block !important;
+  }
+
+  /* Hide any potential empty containers at the end */
+  .fixed,
+  .absolute {
+    position: static !important;
+    display: none !important;
   }
 }

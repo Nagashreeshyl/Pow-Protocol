@@ -25,6 +25,9 @@ export interface RepoInfo {
     hasTests: boolean;
     hasCI: boolean;
     license: string | null;
+    totalCommits?: number;
+    totalContributors?: number;
+    totalLines?: number;
 }
 
 export interface CommitInfo {
@@ -79,8 +82,6 @@ export async function getRepoInfo(owner: string, repo: string): Promise<RepoInfo
     const octokit = getOctokit();
 
     const { data: repoData } = await octokit.repos.get({ owner, repo });
-
-    // Get languages
     const { data: languages } = await octokit.repos.listLanguages({ owner, repo });
 
     // Check for tests and CI
@@ -95,8 +96,38 @@ export async function getRepoInfo(owner: string, repo: string): Promise<RepoInfo
             );
             hasCI = names.some((n) => ['.github', '.circleci', '.travis.yml', 'Jenkinsfile'].includes(n));
         }
-    } catch {
-        // ignore
+    } catch { }
+
+    // Get stats
+    let totalCommits = 0;
+    let totalContributors = 0;
+    let totalLines = 0;
+
+    try {
+        // Total Commits trick: per_page=1 and look at the last page in Link header
+        const commitRes = await octokit.repos.listCommits({ owner, repo, per_page: 1 });
+        const link = commitRes.headers.link;
+        if (link) {
+            const match = link.match(/&page=(\d+)>; rel="last"/);
+            totalCommits = match ? parseInt(match[1]) : 1;
+        } else {
+            totalCommits = 1;
+        }
+
+        // Contributors
+        const contribRes = await octokit.repos.listContributors({ owner, repo, per_page: 1, anon: "false" });
+        const contribLink = contribRes.headers.link;
+        if (contribLink) {
+            const match = contribLink.match(/&page=(\d+)>; rel="last"/);
+            totalContributors = match ? parseInt(match[1]) : contribRes.data.length;
+        } else {
+            totalContributors = contribRes.data.length;
+        }
+
+        // Lines estimate based on bytes (approx 45 bytes per line for code)
+        totalLines = Math.round(repoData.size * 1024 / 45);
+    } catch (e) {
+        console.error("Stats fetch failed:", e);
     }
 
     return {
@@ -114,6 +145,9 @@ export async function getRepoInfo(owner: string, repo: string): Promise<RepoInfo
         hasTests,
         hasCI,
         license: repoData.license?.name || null,
+        totalCommits,
+        totalContributors,
+        totalLines,
     };
 }
 
